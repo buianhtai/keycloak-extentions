@@ -20,8 +20,8 @@ Changes in this theme
 
 ## Keycloak config
 
-Copy the jar in the target folder to the `/opt/jboss/keycloak/standalone/deployments/` folder.
-Or when using Docker mount the file `./jar-name.jar:/opt/jboss/keycloak/standalone/deployments/jar-name.jar`
+Copy the jar in the target folder to the `/opt/keycloak/providers//` folder.
+Or when using Docker mount the file `./jar-name.jar:/opt/keycloak/providers//jar-name.jar`
 
 ## Keycloak admin console configuration
 
@@ -52,7 +52,7 @@ Uncomment the following line in the docker-compose file
 
 Comment the following line in the docker-compose file
 
-    - ./theme-minimal/target/theme-minimal-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/theme-minimal-0.0.1-SNAPSHOT.jar
+    - ./theme-minimal/target/theme-minimal-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers//theme-minimal-0.0.1-SNAPSHOT.jar
     
 Run docker-compose from the root dir of this repo
 

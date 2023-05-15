@@ -2,47 +2,74 @@ version: '3.7'
 
 services:
   postgres:
-    image: postgres:13
     container_name: postgres
+    image: "postgres:${POSTGRES_VERSION:?err}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "keycloak"]
+      interval: 10s
+      start_period: 5s
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: password
-    ports:
-      - 5434:5432
+    volumes:
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+        tmpfs:
+          size: 100000000
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+          cpus: '0.5'
 
   keycloak:
-    image: jboss/keycloak:11.0.3
+    image: "quay.io/keycloak/keycloak:${KC_VERSION:?err}"
     container_name: keycloak
+    restart: unless-stopped
+    #    healthcheck:
+    #      test: ["CMD", "curl", "--fail", "http://localhost:8080/health/ready"]
+    #      start_period: 10s
     environment:
-      DB_VENDOR: POSTGRES
-      DB_ADDR: postgres
-      DB_DATABASE: keycloak
-      DB_USER: keycloak
-      DB_PASSWORD: password
-      KEYCLOAK_USER: admin
-      KEYCLOAK_PASSWORD: password
-      PROXY_ADDRESS_FORWARDING: "true"
-      TZ: UTC
-      KEYCLOAK_DEFAULT_THEME: theme-minimal
-      KEYCLOAK_WELCOME_THEME: theme-minimal
+      KC_DB: postgres
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+      KC_DB_URL: "jdbc:postgresql://postgres:5432/keycloak"
+      KC_METRICS_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KC_REALM_NAME: ${KC_REALM_NAME}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      GF_URL: ${GF_HOSTNAME}:${GF_SERVER_HTTP_PORT}
+      GF_ADMIN_USERNAME: ${GF_ADMIN_USERNAME}
+      GF_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD}
       #KEYCLOAK_LOGLEVEL: DEBUG
     ports:
       - 8088:8080
     command:
-      - "-Dkeycloak.migration.action=import -Dkeycloak.migration.provider=dir -Dkeycloak.migration.dir=/opt/jboss/keycloak/import-dir -Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
+      - "-Dkeycloak.migration.provider=dir -Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
+      - "start-dev"
+#      -  "--spi-email-template-provider=freemarker-plus-mustache --spi-email-template-freemarker-plus-mustache-enabled=true"
+      #      - "--import-realm"
+      - "-Dkeycloak.profile.feature.token_exchange=enabled -Dkeycloak.profile.feature.admin_fine_grained_authz=enabled"
 #      - "-Dkeycloak.migration.action=export -Dkeycloak.migration.provider=dir -Dkeycloak.migration.dir=/opt/jboss/keycloak/export-dir -Dkeycloak.migration.usersPerFile=1000 -Dkeycloak.migration.strategy=OVERWRITE_EXISTING"
     volumes:
-      - ./_resources/demo-config/standalone-ha.xml:/opt/jboss/keycloak/standalone/configuration/standalone-ha.xml
-      - ./_resources/demo-config/import-dir:/opt/jboss/keycloak/import-dir
-      - ./_resources/demo-config/export-dir:/opt/jboss/keycloak/export-dir
-      #- ./theme-minimal/src/main/resources/theme/theme-minimal:/opt/jboss/keycloak/themes/theme-minimal
-      - ./theme-minimal/target/theme-minimal-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/theme-minimal-0.0.1-SNAPSHOT.jar
-      - ./provider-domain/target/provider-domain-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/provider-domain-0.0.1-SNAPSHOT.jar
-      - ./spi-registration-profile/target/spi-registration-profile-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/spi-registration-profile-0.0.1-SNAPSHOT.jar
-      - ./spi-resource/target/spi-resource-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/spi-resource-0.0.1-SNAPSHOT.jar
-      - ./spi-event-listener/target/spi-event-listener-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/spi-event-listener-0.0.1-SNAPSHOT.jar
-      - ./spi-mail-template-override/target/spi-mail-template-override-0.0.1-SNAPSHOT.jar:/opt/jboss/keycloak/standalone/deployments/spi-mail-template-override-0.0.1-SNAPSHOT.jar
+#      - ./_resources/demo-config/standalone-ha.xml:/opt/keycloak/providers/configuration/standalone-ha.xml
+#      - ./_resources/demo-config/import-dir:/opt/keycloak/import-dir
+#      - ./_resources/demo-config/export-dir:/opt/keycloak/export-dir
+      - ./theme-minimal/src/main/resources/theme/theme-minimal:/opt/keycloak/themes/theme-minimal
+      - ./theme-minimal/target/theme-minimal-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/theme-minimal-0.0.1-SNAPSHOT.jar
+      - ./provider-domain/target/provider-domain-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/provider-domain-0.0.1-SNAPSHOT.jar
+      - ./spi-registration-profile/target/spi-registration-profile-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/spi-registration-profile-0.0.1-SNAPSHOT.jar
+#      - ./spi-resource/target/spi-resource-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/spi-resource-0.0.1-SNAPSHOT.jar
+      - ./spi-event-listener/target/spi-event-listener-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/spi-event-listener-0.0.1-SNAPSHOT.jar
+      - ./keycloak-orgs/target/keycloak-orgs-0.30-SNAPSHOT.jar:/opt/keycloak/providers/keycloak-orgs-0.30-SNAPSHOT.jar
+      - ./phasetwo-admin-portal/target/phasetwo-admin-portal-0.2-SNAPSHOT.jar:/opt/keycloak/providers/phasetwo-admin-portal-0.2-SNAPSHOT.jar
+      - ./keycloak-ui/keycloak-theme/target/keycloak-admin-ui-999-SNAPSHOT.jar:/opt/keycloak/providers/keycloak-admin-ui-999-SNAPSHOT.jar
+
+
+    #      - ./spi-mail-template-override/target/spi-mail-template-override-0.0.1-SNAPSHOT.jar:/opt/keycloak/providers/spi-mail-template-override-0.0.1-SNAPSHOT.jar
     depends_on:
       - postgres
       - mailhog
